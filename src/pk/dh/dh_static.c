@@ -17,11 +17,8 @@
 
 #ifdef LTC_MDH
 
-#define __DECL_DH_STATIC_H__
-#include "dh_static.h"
-
 /* This holds the key settings.  ***MUST*** be organized by size from smallest to largest. */
-const dh_set sets[] = {
+const ltc_dh_set_type ltc_dh_sets[] = {
 #ifdef LTC_DH768
 {  /* 768-bit MODP Group 1 - https://tools.ietf.org/html/rfc7296#appendix-B.1 */
    96,
@@ -227,17 +224,5 @@ const dh_set sets[] = {
    NULL
 }
 };
-
-int dh_is_valid_idx(int n)
-{
-   int x;
-
-   for (x = 0; sets[x].size; x++);
-   if ((n < 0) || (n >= x)) {
-      return 0;
-   }
-   return 1;
-}
-
 
 #endif /* LTC_MDH */

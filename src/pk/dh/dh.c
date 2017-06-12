@@ -17,93 +17,150 @@
 
 #ifdef LTC_MDH
 
-
 #include "dh_static.h"
 
 /**
-   Test the DH sub-system (can take a while)
-   @return CRYPT_OK if successful
+   Get the min and max DH group sizes (octets)
+   @param low    [out] The smallest group size supported
+   @param high   [out] The largest group size supported
 */
-int dh_compat_test(void)
-{
-    void *p, *g, *tmp;
-    int x, err, primality;
-
-    if ((err = mp_init_multi(&p, &g, &tmp, NULL)) != CRYPT_OK)                 { goto error; }
-
-    for (x = 0; sets[x].size != 0; x++) {
-#if 0
-        printf("dh_test():testing size %d-bits\n", sets[x].size * 8);
-#endif
-        if ((err = mp_read_radix(g,(char *)sets[x].base, 16)) != CRYPT_OK)    { goto error; }
-        if ((err = mp_read_radix(p,(char *)sets[x].prime, 16)) != CRYPT_OK)   { goto error; }
-
-        /* ensure p is prime */
-        if ((err = mp_prime_is_prime(p, 8, &primality)) != CRYPT_OK)                     { goto done; }
-        if (primality != LTC_MP_YES ) {
-           err = CRYPT_FAIL_TESTVECTOR;
-           goto done;
-        }
-
-        if ((err = mp_sub_d(p, 1, tmp)) != CRYPT_OK)                         { goto error; }
-        if ((err = mp_div_2(tmp, tmp)) != CRYPT_OK)                          { goto error; }
-
-        /* ensure (p-1)/2 is prime */
-        if ((err = mp_prime_is_prime(tmp, 8, &primality)) != CRYPT_OK)                   { goto done; }
-        if (primality == 0) {
-           err = CRYPT_FAIL_TESTVECTOR;
-           goto done;
-        }
-
-        /* now see if g^((p-1)/2) mod p is in fact 1 */
-        if ((err = mp_exptmod(g, tmp, p, tmp)) != CRYPT_OK)                { goto error; }
-        if (mp_cmp_d(tmp, 1)) {
-           err = CRYPT_FAIL_TESTVECTOR;
-           goto done;
-        }
-    }
-    err = CRYPT_OK;
-error:
-done:
-    mp_clear_multi(tmp, g, p, NULL);
-    return err;
-}
-
-/**
-   Get the min and max DH key sizes (octets)
-   @param low    [out] The smallest key size supported
-   @param high   [out] The largest key size supported
-*/
-void dh_sizes(int *low, int *high)
+void dh_groupsizes(int *low, int *high)
 {
    int x;
    LTC_ARGCHKVD(low != NULL);
    LTC_ARGCHKVD(high != NULL);
    *low  = INT_MAX;
    *high = 0;
-   for (x = 0; sets[x].size != 0; x++) {
-       if (*low > sets[x].size)  *low  = sets[x].size;
-       if (*high < sets[x].size) *high = sets[x].size;
+   for (x = 0; ltc_dh_sets[x].size != 0; x++) {
+       if (*low > ltc_dh_sets[x].size)  *low  = ltc_dh_sets[x].size;
+       if (*high < ltc_dh_sets[x].size) *high = ltc_dh_sets[x].size;
    }
 }
 
 /**
-  Returns the key size of a given DH key (octets)
+  Returns the DH group size (octets) for given key
   @param key   The DH key to get the size of
-  @return The size if valid or INT_MAX if not
-*/
-int dh_get_size(dh_key *key)
+  @return The group size in octets (0 on error)
+ */
+int dh_get_groupsize(dh_key *key)
 {
-    LTC_ARGCHK(key != NULL);
-    if (dh_is_valid_idx(key->idx) == 1) {
-        return sets[key->idx].size;
-    } else {
-        return INT_MAX; /* large value that would cause dh_make_key() to fail */
-    }
+   if (key == NULL) return 0;
+   return mp_unsigned_bin_size(key->prime);
 }
 
 /**
-  Make a DH key [private key pair]
+  Returns the key size for given group size (octets)
+  @param groupsize   The DH group size in octets
+  @return The key size (0 on error)
+*/
+int dh_groupsize_to_keysize(int groupsize)
+{
+   /* The strength estimates from https://tools.ietf.org/html/rfc3526#section-8
+    * We use "Estimate 2" to get an appropriate private key (exponent) size.
+    */
+   if (groupsize <= 0) {
+      return 0;
+   }
+   else if (groupsize <= 192) {
+      return 30;     /* 1536-bit => key size 240-bit */
+   }
+   else if (groupsize <= 256) {
+      return 40;     /* 2048-bit => key size 320-bit */
+   }
+   else if (groupsize <= 384) {
+      return 52;     /* 3072-bit => key size 416-bit */
+   }
+   else if (groupsize <= 512) {
+      return 60;     /* 4096-bit => key size 480-bit */
+   }
+   else if (groupsize <= 768) {
+      return 67;     /* 6144-bit => key size 536-bit */
+   }
+   else if (groupsize <= 1024) {
+      return 77;     /* 8192-bit => key size 616-bit */
+   }
+   else {
+      return 0;
+   }
+}
+
+/**
+  Make a DH key (custom DH group) [private key pair]
+  @param prng       An active PRNG state
+  @param wprng      The index for the PRNG you desire to use
+  @param prime_hex  The prime p (hexadecimal string)
+  @param base_hex   The base g (hexadecimal string)
+  @param key        [out] Where the newly created DH key will be stored
+  @return CRYPT_OK if successful, note: on error all allocated memory will be freed automatically.
+*/
+int dh_make_key_ex(prng_state *prng, int wprng, char *prime_hex, char *base_hex, dh_key *key)
+{
+   unsigned char *buf;
+   unsigned long keysize;
+   void *p_minus1;
+   int err;
+
+   LTC_ARGCHK(key  != NULL);
+   LTC_ARGCHK(prng != NULL);
+   LTC_ARGCHK(prime_hex != NULL);
+   LTC_ARGCHK(base_hex  != NULL);
+
+   /* good prng? */
+   if ((err = prng_is_valid(wprng)) != CRYPT_OK) {
+      return err;
+   }
+
+   /* init big numbers */
+   if ((err = mp_init_multi(&p_minus1, &key->x, &key->y, &key->base, &key->prime, NULL)) != CRYPT_OK) {
+      return err;
+   }
+
+   /* load the prime and the base */
+   if ((err = mp_read_radix(key->base, base_hex, 16)) != CRYPT_OK)   { goto freemp; }
+   if ((err = mp_read_radix(key->prime, prime_hex, 16)) != CRYPT_OK) { goto freemp; }
+   if ((err = mp_sub_d(key->prime, 1, p_minus1)) != CRYPT_OK)        { goto freemp; }
+
+   keysize = dh_groupsize_to_keysize(mp_unsigned_bin_size(key->prime));
+   if (keysize == 0) {
+      err = CRYPT_INVALID_KEYSIZE;
+      goto freemp;
+   }
+
+   /* allocate buffer */
+   buf = XMALLOC(keysize);
+   if (buf == NULL) {
+      err = CRYPT_MEM;
+      goto freemp;
+   }
+
+   do {
+      /* make up random buf */
+      if (prng_descriptor[wprng].read(buf, keysize, prng) != keysize) {
+         err = CRYPT_ERROR_READPRNG;
+         goto freebuf;
+      }
+      /* load the x value - private key */
+      if ((err = mp_read_unsigned_bin(key->x, buf, keysize)) != CRYPT_OK)  { goto freebuf; }
+      /* compute the y value - public key */
+      if ((err = mp_exptmod(key->base, key->x, key->prime, key->y)) != CRYPT_OK)            { goto freebuf; }
+      /* avoid: y <= 1 OR y >= p-1 */
+   } while (mp_cmp(key->y, p_minus1) != LTC_MP_LT || mp_cmp_d(key->y, 1) != LTC_MP_GT);
+
+   /* success */
+   key->type = PK_PRIVATE;
+   mp_clear_multi(p_minus1, NULL);
+   return CRYPT_OK;
+
+freebuf:
+   zeromem(buf, keysize);
+   XFREE(buf);
+freemp:
+   mp_clear_multi(p_minus1, key->x, key->y, key->base, key->prime, NULL);
+   return err;
+}
+
+/**
+  Make a DH key (use built-in DH groups) [private key pair]
   @param prng       An active PRNG state
   @param wprng      The index for the PRNG you desire to use
   @param groupsize  The size (octets) of used DH group
@@ -112,93 +169,12 @@ int dh_get_size(dh_key *key)
 */
 int dh_make_key(prng_state *prng, int wprng, int groupsize, dh_key *key)
 {
-   unsigned char *buf;
-   unsigned long idx, keysize;
-   void *p, *g, *p_minus1;
-   int err;
+   int i;
 
-   LTC_ARGCHK(key  != NULL);
-   LTC_ARGCHK(prng != NULL);
+   for (i = 0; (groupsize > ltc_dh_sets[i].size) && (ltc_dh_sets[i].size != 0); i++);
+   if (ltc_dh_sets[i].size == 0) return CRYPT_INVALID_KEYSIZE;
 
-   /* good prng? */
-   if ((err = prng_is_valid(wprng)) != CRYPT_OK) {
-      return err;
-   }
-
-   /* find group size */
-   for (idx = 0; (groupsize > sets[idx].size) && (sets[idx].size != 0); idx++);
-   if (sets[idx].size == 0) {
-      return CRYPT_INVALID_KEYSIZE;
-   }
-   groupsize = sets[idx].size;
-
-   /* The strength estimates from https://tools.ietf.org/html/rfc3526#section-8
-    * We use "Estimate 2" to get an appropriate private key (exponent) size.
-    */
-   if (groupsize <= 192) {
-      keysize = 30;     /* 1536-bit => key size 240-bit */
-   }
-   else if (groupsize <= 256) {
-      keysize = 40;     /* 2048-bit => key size 320-bit */
-   }
-   else if (groupsize <= 384) {
-      keysize = 52;     /* 3072-bit => key size 416-bit */
-   }
-   else if (groupsize <= 512) {
-      keysize = 60;     /* 4096-bit => key size 480-bit */
-   }
-   else if (groupsize <= 768) {
-      keysize = 67;     /* 6144-bit => key size 536-bit */
-   }
-   else if (groupsize <= 1024) {
-      keysize = 77;     /* 8192-bit => key size 616-bit */
-   }
-   else {
-      return CRYPT_INVALID_KEYSIZE;
-   }
-
-   /* allocate buffer */
-   buf = XMALLOC(keysize);
-   if (buf == NULL) {
-      return CRYPT_MEM;
-   }
-
-   /* init big numbers */
-   if ((err = mp_init_multi(&g, &p, &p_minus1, &key->x, &key->y, NULL)) != CRYPT_OK) {
-      goto freebuf;
-   }
-
-   if ((err = mp_read_radix(g, sets[idx].base, 16)) != CRYPT_OK)           { goto error; }
-   if ((err = mp_read_radix(p, sets[idx].prime, 16)) != CRYPT_OK)          { goto error; }
-   if ((err = mp_sub_d(p, 1, p_minus1)) != CRYPT_OK)                       { goto error; }
-
-   do {
-      /* make up random buf */
-      if (prng_descriptor[wprng].read(buf, keysize, prng) != keysize) {
-         err = CRYPT_ERROR_READPRNG;
-         goto error;
-      }
-      /* load the x value - private key */
-      if ((err = mp_read_unsigned_bin(key->x, buf, keysize)) != CRYPT_OK)  { goto error; }
-      /* compute the y value - public key */
-      if ((err = mp_exptmod(g, key->x, p, key->y)) != CRYPT_OK)            { goto error; }
-      /* avoid: y <= 1 OR y >= p-1 */
-   } while (mp_cmp(key->y, p_minus1) != LTC_MP_LT || mp_cmp_d(key->y, 1) != LTC_MP_GT);
-
-   /* success */
-   key->idx = idx;
-   key->type = PK_PRIVATE;
-   err = CRYPT_OK;
-   goto done;
-
-error:
-   mp_clear_multi(key->x, key->y, NULL);
-done:
-   mp_clear_multi(g, p, p_minus1, NULL);
-freebuf:
-   zeromem(buf, keysize);
-   XFREE(buf);
-   return err;
+   return dh_make_key_ex(prng, wprng, ltc_dh_sets[i].prime, ltc_dh_sets[i].base, key);
 }
 
 /**
@@ -208,6 +184,14 @@ freebuf:
 void dh_free(dh_key *key)
 {
    LTC_ARGCHKVD(key != NULL);
+   if ( key->base ) {
+      mp_clear( key->base );
+      key->base = NULL;
+   }
+   if ( key->prime ) {
+      mp_clear( key->prime );
+      key->prime = NULL;
+   }
    if ( key->x ) {
       mp_clear( key->x );
       key->x = NULL;
@@ -249,14 +233,18 @@ int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key)
 
    /* header */
    out[y++] = type;
-   out[y++] = (unsigned char)(sets[key->idx].size / 8);
 
-   /* export y */
-   OUTPUT_BIGNUM(key->y, out, y, z);
+   /* export DH group params */
+   OUTPUT_BIGNUM(key->prime, out, y, z);
+   OUTPUT_BIGNUM(key->base, out, y, z);
 
    if (type == PK_PRIVATE) {
-      /* export x */
+      /* export x - private key */
       OUTPUT_BIGNUM(key->x, out, y, z);
+   }
+   else {
+      /* export y - public key */
+      OUTPUT_BIGNUM(key->y, out, y, z);
    }
 
    /* store header */
@@ -276,7 +264,7 @@ int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key)
 */
 int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key)
 {
-   unsigned long x, y, s;
+   unsigned long x, y;
    int err;
 
    LTC_ARGCHK(in  != NULL);
@@ -293,7 +281,7 @@ int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key)
    }
 
    /* init */
-   if ((err = mp_init_multi(&key->x, &key->y, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&key->prime, &key->base, &key->x, &key->y, NULL)) != CRYPT_OK) {
       return err;
    }
 
@@ -303,44 +291,32 @@ int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key)
    /* key type, e.g. private, public */
    key->type = (int)in[y++];
 
-   /* key size in bytes */
-   s  = (unsigned long)in[y++] * 8;
-
-   for (x = 0; (s > (unsigned long)sets[x].size) && (sets[x].size != 0); x++);
-   if (sets[x].size == 0) {
-      err = CRYPT_INVALID_KEYSIZE;
-      goto error;
-   }
-   key->idx = (int)x;
-
    /* type check both values */
    if ((key->type != PK_PUBLIC) && (key->type != PK_PRIVATE))  {
       err = CRYPT_PK_TYPE_MISMATCH;
       goto error;
    }
 
-   /* is the key idx valid? */
-   if (dh_is_valid_idx(key->idx) != 1) {
-      err = CRYPT_PK_TYPE_MISMATCH;
-      goto error;
-   }
-
-   /* load public value g^x mod p*/
-   INPUT_BIGNUM(key->y, in, x, y, inlen);
+   /* load DH group params */
+   INPUT_BIGNUM(key->prime, in, x, y, inlen);
+   INPUT_BIGNUM(key->base, in, x, y, inlen);
 
    if (key->type == PK_PRIVATE) {
+      /* load private key */
       INPUT_BIGNUM(key->x, in, x, y, inlen);
+      /* compute public key */
+      if ((err = mp_exptmod(key->base, key->x, key->prime, key->y)) != CRYPT_OK) {
+         goto error;
+      }
    }
-
-   /* eliminate private key if public */
-   if (key->type == PK_PUBLIC) {
-      mp_clear(key->x);
-      key->x = NULL;
+   else {
+      /* load public value g^x mod p */
+      INPUT_BIGNUM(key->y, in, x, y, inlen);
    }
 
    return CRYPT_OK;
 error:
-   mp_clear_multi(key->y, key->x, NULL);
+   mp_clear_multi(key->prime, key->base, key->y, key->x, NULL);
    return err;
 }
 
@@ -355,7 +331,7 @@ error:
 int dh_shared_secret(dh_key *private_key, dh_key *public_key,
                      unsigned char *out, unsigned long *outlen)
 {
-   void *tmp, *p, *p_minus1;
+   void *tmp;
    unsigned long x;
    int err;
 
@@ -369,37 +345,45 @@ int dh_shared_secret(dh_key *private_key, dh_key *public_key,
       return CRYPT_PK_NOT_PRIVATE;
    }
 
-   /* same idx? */
-   if (private_key->idx != public_key->idx) {
-      return CRYPT_PK_TYPE_MISMATCH;
-   }
+   /* same DH group? */
+   if (mp_cmp(private_key->prime, public_key->prime) != LTC_MP_EQ) { return CRYPT_PK_TYPE_MISMATCH; }
+   if (mp_cmp(private_key->base, public_key->base) != LTC_MP_EQ)   { return CRYPT_PK_TYPE_MISMATCH; }
 
-   /* compute y^x mod p */
-   if ((err = mp_init_multi(&tmp, &p, &p_minus1, NULL)) != CRYPT_OK) {
+   /* init big numbers */
+   if ((err = mp_init(&tmp)) != CRYPT_OK) {
       return err;
    }
 
-   if ((err = mp_read_radix(p, sets[private_key->idx].prime, 16)) != CRYPT_OK)  { goto error; }
-   if ((err = mp_sub_d(p, 1, p_minus1)) != CRYPT_OK)                            { goto error; }
-   if (mp_cmp(public_key->y, p_minus1) != LTC_MP_LT || mp_cmp_d(public_key->y, 1) != LTC_MP_GT) {
-      /* reject public key with: y <= 1 OR y >= p-1 */
+   /* tmp = p-1 */
+   if ((err = mp_sub_d(private_key->prime, 1, tmp)) != CRYPT_OK) {
+      goto error;
+   }
+   /* reject public keys with: y <= 1 OR y >= p-1 */
+   if (mp_cmp(public_key->y, tmp) != LTC_MP_LT || mp_cmp_d(public_key->y, 1) != LTC_MP_GT) {
       err = CRYPT_INVALID_ARG;
       goto error;
    }
-   if ((err = mp_exptmod(public_key->y, private_key->x, p, tmp)) != CRYPT_OK)   { goto error; }
+
+   /* compute y^x mod p */
+   if ((err = mp_exptmod(public_key->y, private_key->x, private_key->prime, tmp)) != CRYPT_OK)  {
+      goto error;
+   }
 
    /* enough space for output? */
    x = (unsigned long)mp_unsigned_bin_size(tmp);
    if (*outlen < x) {
+      *outlen = x;
       err = CRYPT_BUFFER_OVERFLOW;
       goto error;
    }
-   if ((err = mp_to_unsigned_bin(tmp, out)) != CRYPT_OK)                        { goto error; }
+   if ((err = mp_to_unsigned_bin(tmp, out)) != CRYPT_OK) {
+      goto error;
+   }
    *outlen = x;
    err = CRYPT_OK;
 
 error:
-   mp_clear_multi(p_minus1, p, tmp, NULL);
+   mp_clear(tmp);
    return err;
 }
 

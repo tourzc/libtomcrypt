@@ -1,8 +1,5 @@
 #ifndef __DH_STATIC_H__
 #define __DH_STATIC_H__
-#ifndef __DECL_DH_STATIC_H__
-#define __DECL_DH_STATIC_H__ extern
-#endif
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -14,7 +11,6 @@
  *
  * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
  */
-#include "tomcrypt.h"
 
 /**
   @file dh_static.h
@@ -80,7 +76,6 @@ static LTC_INLINE void packet_store_header (unsigned char *dst, int section, int
    /* store section and subsection */
    dst[2] = (unsigned char)(section & 255);
    dst[3] = (unsigned char)(subsection & 255);
-
 }
 
 static LTC_INLINE int packet_valid_header (unsigned char *src, int section, int subsection)
@@ -105,20 +100,8 @@ static LTC_INLINE int packet_valid_header (unsigned char *src, int section, int 
 
 #ifndef DH_BUF_SIZE
 /* max export size we'll encounter (smaller than this but lets round up a bit) */
-#define DH_BUF_SIZE 1200
+#define DH_BUF_SIZE 2100
 #endif /* DH_BUF_SIZE */
-
-typedef struct {
-  int size;
-  char *name, *base, *prime;
-} dh_set;
-
-/* This holds the key settings.  ***MUST*** be organized by size from smallest to largest. */
-__DECL_DH_STATIC_H__ const dh_set sets[];
-
-
-int dh_is_valid_idx(int n);
-
 
 #endif /* __DH_STATIC_H__ */
 

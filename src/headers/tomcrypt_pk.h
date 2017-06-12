@@ -171,17 +171,27 @@ int katja_import(const unsigned char *in, unsigned long inlen, katja_key *key);
 /* ---- DH Routines ---- */
 #ifdef LTC_MDH
 
-typedef struct Dh_key {
-    int idx, type;
+typedef struct {
+  int size;
+  char *name, *base, *prime;
+} ltc_dh_set_type;
+
+extern const ltc_dh_set_type ltc_dh_sets[];
+
+typedef struct {
+    int type;
     void *x;
     void *y;
+    void *base;
+    void *prime;
 } dh_key;
 
-int dh_compat_test(void);
-void dh_sizes(int *low, int *high);
-int dh_get_size(dh_key *key);
+void dh_groupsizes(int *low, int *high);
+int dh_get_groupsize(dh_key *key);
+int dh_groupsize_to_keysize(int groupsize);
 
-int dh_make_key(prng_state *prng, int wprng, int keysize, dh_key *key);
+int dh_make_key(prng_state *prng, int wprng, int groupsize, dh_key *key);
+int dh_make_key_ex(prng_state *prng, int wprng, char *prime_hex, char *base_hex, dh_key *key);
 void dh_free(dh_key *key);
 
 int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key);
@@ -206,7 +216,6 @@ int dh_sign_hash(const unsigned char *in,   unsigned long inlen,
 int dh_verify_hash(const unsigned char *sig,  unsigned long siglen,
                    const unsigned char *hash, unsigned long hashlen,
                    int *stat, dh_key *key);
-
 
 #endif
 
