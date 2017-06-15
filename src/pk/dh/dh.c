@@ -5,19 +5,219 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
  */
-#include "tomcrypt.h"
 
-/**
-  @file dh.c
-  DH crypto, Tom St Denis
-*/
+#include "tomcrypt.h"
 
 #ifdef LTC_MDH
 
-#include "dh_static.h"
+/* This holds the key settings.  ***MUST*** be organized by size from smallest to largest. */
+const ltc_dh_set_type ltc_dh_sets[] = {
+#ifdef LTC_DH768
+{  /* 768-bit MODP Group 1 - https://tools.ietf.org/html/rfc7296#appendix-B.1 */
+   96,
+   "DH-768",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A63A3620FFFFFFFFFFFFFFFF"
+},
+#endif
+#ifdef LTC_DH1024
+{  /* 1024-bit MODP Group 2 - https://tools.ietf.org/html/rfc7296#appendix-B.2 */
+   128,
+   "DH-1024",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+   "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381"
+   "FFFFFFFFFFFFFFFF"
+},
+#endif
+#ifdef LTC_DH1536
+{  /* 1536-bit MODP Group 5 - https://tools.ietf.org/html/rfc3526#section-2 */
+   192,
+   "DH-1536",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+   "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
+   "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+   "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
+   "670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF"
+},
+#endif
+#ifdef LTC_DH2048
+{  /* 2048-bit MODP Group 14 - https://tools.ietf.org/html/rfc3526#section-3 */
+   256,
+   "DH-2048",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+   "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
+   "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+   "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
+   "670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+   "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"
+   "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
+   "15728E5A8AACAA68FFFFFFFFFFFFFFFF"
+},
+#endif
+#ifdef LTC_DH3072
+{  /* 3072-bit MODP Group 15 - https://tools.ietf.org/html/rfc3526#section-4 */
+   384,
+   "DH-3072",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+   "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
+   "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+   "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
+   "670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+   "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"
+   "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
+   "15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64"
+   "ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7"
+   "ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B"
+   "F12FFA06D98A0864D87602733EC86A64521F2B18177B200C"
+   "BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31"
+   "43DB5BFCE0FD108E4B82D120A93AD2CAFFFFFFFFFFFFFFFF"
+},
+#endif
+#ifdef LTC_DH4096
+{  /* 4096-bit MODP Group 16 - https://tools.ietf.org/html/rfc3526#section-5 */
+   512,
+   "DH-4096",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+   "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
+   "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+   "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
+   "670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+   "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"
+   "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
+   "15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64"
+   "ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7"
+   "ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B"
+   "F12FFA06D98A0864D87602733EC86A64521F2B18177B200C"
+   "BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31"
+   "43DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D7"
+   "88719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA"
+   "2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6"
+   "287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED"
+   "1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA9"
+   "93B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199"
+   "FFFFFFFFFFFFFFFF"
+},
+#endif
+#ifdef LTC_DH6144
+{  /* 6144-bit MODP Group 17 - https://tools.ietf.org/html/rfc3526#section-6 */
+   786,
+   "DH-6144",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+   "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
+   "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+   "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
+   "670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+   "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"
+   "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
+   "15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64"
+   "ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7"
+   "ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B"
+   "F12FFA06D98A0864D87602733EC86A64521F2B18177B200C"
+   "BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31"
+   "43DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D7"
+   "88719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA"
+   "2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6"
+   "287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED"
+   "1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA9"
+   "93B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934028492"
+   "36C3FAB4D27C7026C1D4DCB2602646DEC9751E763DBA37BD"
+   "F8FF9406AD9E530EE5DB382F413001AEB06A53ED9027D831"
+   "179727B0865A8918DA3EDBEBCF9B14ED44CE6CBACED4BB1B"
+   "DB7F1447E6CC254B332051512BD7AF426FB8F401378CD2BF"
+   "5983CA01C64B92ECF032EA15D1721D03F482D7CE6E74FEF6"
+   "D55E702F46980C82B5A84031900B1C9E59E7C97FBEC7E8F3"
+   "23A97A7E36CC88BE0F1D45B7FF585AC54BD407B22B4154AA"
+   "CC8F6D7EBF48E1D814CC5ED20F8037E0A79715EEF29BE328"
+   "06A1D58BB7C5DA76F550AA3D8A1FBFF0EB19CCB1A313D55C"
+   "DA56C9EC2EF29632387FE8D76E3C0468043E8F663F4860EE"
+   "12BF2D5B0B7474D6E694F91E6DCC4024FFFFFFFFFFFFFFFF"
+},
+#endif
+#ifdef LTC_DH8192
+{  /* 8192-bit MODP Group 18 - https://tools.ietf.org/html/rfc3526#section-7 */
+   1024,
+   "DH-8192",
+   "2",
+   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+   "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+   "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+   "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
+   "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+   "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
+   "670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+   "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"
+   "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
+   "15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64"
+   "ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7"
+   "ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B"
+   "F12FFA06D98A0864D87602733EC86A64521F2B18177B200C"
+   "BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31"
+   "43DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D7"
+   "88719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA"
+   "2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6"
+   "287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED"
+   "1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA9"
+   "93B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934028492"
+   "36C3FAB4D27C7026C1D4DCB2602646DEC9751E763DBA37BD"
+   "F8FF9406AD9E530EE5DB382F413001AEB06A53ED9027D831"
+   "179727B0865A8918DA3EDBEBCF9B14ED44CE6CBACED4BB1B"
+   "DB7F1447E6CC254B332051512BD7AF426FB8F401378CD2BF"
+   "5983CA01C64B92ECF032EA15D1721D03F482D7CE6E74FEF6"
+   "D55E702F46980C82B5A84031900B1C9E59E7C97FBEC7E8F3"
+   "23A97A7E36CC88BE0F1D45B7FF585AC54BD407B22B4154AA"
+   "CC8F6D7EBF48E1D814CC5ED20F8037E0A79715EEF29BE328"
+   "06A1D58BB7C5DA76F550AA3D8A1FBFF0EB19CCB1A313D55C"
+   "DA56C9EC2EF29632387FE8D76E3C0468043E8F663F4860EE"
+   "12BF2D5B0B7474D6E694F91E6DBE115974A3926F12FEE5E4"
+   "38777CB6A932DF8CD8BEC4D073B931BA3BC832B68D9DD300"
+   "741FA7BF8AFC47ED2576F6936BA424663AAB639C5AE4F568"
+   "3423B4742BF1C978238F16CBE39D652DE3FDB8BEFC848AD9"
+   "22222E04A4037C0713EB57A81A23F0C73473FC646CEA306B"
+   "4BCBC8862F8385DDFA9D4B7FA2C087E879683303ED5BDD3A"
+   "062B3CF5B3A278A66D2A13F83F44F82DDF310EE074AB6A36"
+   "4597E899A0255DC164F31CC50846851DF9AB48195DED7EA1"
+   "B1D510BD7EE74D73FAF36BC31ECFA268359046F4EB879F92"
+   "4009438B481C6CD7889A002ED5EE382BC9190DA6FC026E47"
+   "9558E4475677E9AA9E3050E2765694DFC81F56E880B96E71"
+   "60C980DD98EDD3DFFFFFFFFFFFFFFFFF"
+},
+#endif
+{
+   0,
+   NULL,
+   NULL,
+   NULL
+}
+};
 
 /**
    Get the min and max DH group sizes (octets)
@@ -32,8 +232,8 @@ void dh_groupsizes(int *low, int *high)
    *low  = INT_MAX;
    *high = 0;
    for (x = 0; ltc_dh_sets[x].size != 0; x++) {
-       if (*low > ltc_dh_sets[x].size)  *low  = ltc_dh_sets[x].size;
-       if (*high < ltc_dh_sets[x].size) *high = ltc_dh_sets[x].size;
+      if (*low > ltc_dh_sets[x].size)  *low  = ltc_dh_sets[x].size;
+      if (*high < ltc_dh_sets[x].size) *high = ltc_dh_sets[x].size;
    }
 }
 
@@ -82,309 +282,6 @@ int dh_groupsize_to_keysize(int groupsize)
    else {
       return 0;
    }
-}
-
-/**
-  Make a DH key (custom DH group) [private key pair]
-  @param prng       An active PRNG state
-  @param wprng      The index for the PRNG you desire to use
-  @param prime_hex  The prime p (hexadecimal string)
-  @param base_hex   The base g (hexadecimal string)
-  @param key        [out] Where the newly created DH key will be stored
-  @return CRYPT_OK if successful, note: on error all allocated memory will be freed automatically.
-*/
-int dh_make_key_ex(prng_state *prng, int wprng, char *prime_hex, char *base_hex, dh_key *key)
-{
-   unsigned char *buf;
-   unsigned long keysize;
-   void *p_minus1;
-   int err;
-
-   LTC_ARGCHK(key  != NULL);
-   LTC_ARGCHK(prng != NULL);
-   LTC_ARGCHK(prime_hex != NULL);
-   LTC_ARGCHK(base_hex  != NULL);
-
-   /* good prng? */
-   if ((err = prng_is_valid(wprng)) != CRYPT_OK) {
-      return err;
-   }
-
-   /* init big numbers */
-   if ((err = mp_init_multi(&p_minus1, &key->x, &key->y, &key->base, &key->prime, NULL)) != CRYPT_OK) {
-      return err;
-   }
-
-   /* load the prime and the base */
-   if ((err = mp_read_radix(key->base, base_hex, 16)) != CRYPT_OK)   { goto freemp; }
-   if ((err = mp_read_radix(key->prime, prime_hex, 16)) != CRYPT_OK) { goto freemp; }
-   if ((err = mp_sub_d(key->prime, 1, p_minus1)) != CRYPT_OK)        { goto freemp; }
-
-   keysize = dh_groupsize_to_keysize(mp_unsigned_bin_size(key->prime));
-   if (keysize == 0) {
-      err = CRYPT_INVALID_KEYSIZE;
-      goto freemp;
-   }
-
-   /* allocate buffer */
-   buf = XMALLOC(keysize);
-   if (buf == NULL) {
-      err = CRYPT_MEM;
-      goto freemp;
-   }
-
-   do {
-      /* make up random buf */
-      if (prng_descriptor[wprng].read(buf, keysize, prng) != keysize) {
-         err = CRYPT_ERROR_READPRNG;
-         goto freebuf;
-      }
-      /* load the x value - private key */
-      if ((err = mp_read_unsigned_bin(key->x, buf, keysize)) != CRYPT_OK)  { goto freebuf; }
-      /* compute the y value - public key */
-      if ((err = mp_exptmod(key->base, key->x, key->prime, key->y)) != CRYPT_OK)            { goto freebuf; }
-      /* avoid: y <= 1 OR y >= p-1 */
-   } while (mp_cmp(key->y, p_minus1) != LTC_MP_LT || mp_cmp_d(key->y, 1) != LTC_MP_GT);
-
-   /* success */
-   key->type = PK_PRIVATE;
-   mp_clear_multi(p_minus1, NULL);
-   return CRYPT_OK;
-
-freebuf:
-   zeromem(buf, keysize);
-   XFREE(buf);
-freemp:
-   mp_clear_multi(p_minus1, key->x, key->y, key->base, key->prime, NULL);
-   return err;
-}
-
-/**
-  Make a DH key (use built-in DH groups) [private key pair]
-  @param prng       An active PRNG state
-  @param wprng      The index for the PRNG you desire to use
-  @param groupsize  The size (octets) of used DH group
-  @param key        [out] Where the newly created DH key will be stored
-  @return CRYPT_OK if successful, note: on error all allocated memory will be freed automatically.
-*/
-int dh_make_key(prng_state *prng, int wprng, int groupsize, dh_key *key)
-{
-   int i;
-
-   for (i = 0; (groupsize > ltc_dh_sets[i].size) && (ltc_dh_sets[i].size != 0); i++);
-   if (ltc_dh_sets[i].size == 0) return CRYPT_INVALID_KEYSIZE;
-
-   return dh_make_key_ex(prng, wprng, ltc_dh_sets[i].prime, ltc_dh_sets[i].base, key);
-}
-
-/**
-  Free the allocated ram for a DH key
-  @param key   The key which you wish to free
-*/
-void dh_free(dh_key *key)
-{
-   LTC_ARGCHKVD(key != NULL);
-   if ( key->base ) {
-      mp_clear( key->base );
-      key->base = NULL;
-   }
-   if ( key->prime ) {
-      mp_clear( key->prime );
-      key->prime = NULL;
-   }
-   if ( key->x ) {
-      mp_clear( key->x );
-      key->x = NULL;
-   }
-   if ( key->y ) {
-      mp_clear( key->y );
-      key->y = NULL;
-   }
-}
-
-/**
-  Export a DH key to a binary packet
-  @param out    [out] The destination for the key
-  @param outlen [in/out] The max size and resulting size of the DH key
-  @param type   Which type of key (PK_PRIVATE or PK_PUBLIC)
-  @param key    The key you wish to export
-  @return CRYPT_OK if successful
-*/
-int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key)
-{
-   unsigned long y, z;
-   int err;
-
-   LTC_ARGCHK(out    != NULL);
-   LTC_ARGCHK(outlen != NULL);
-   LTC_ARGCHK(key    != NULL);
-
-   /* can we store the static header?  */
-   if (*outlen < (PACKET_SIZE + 2)) {
-      return CRYPT_BUFFER_OVERFLOW;
-   }
-
-   if (type == PK_PRIVATE && key->type != PK_PRIVATE) {
-      return CRYPT_PK_NOT_PRIVATE;
-   }
-
-   /* header */
-   y = PACKET_SIZE;
-
-   /* header */
-   out[y++] = type;
-
-   /* export DH group params */
-   OUTPUT_BIGNUM(key->prime, out, y, z);
-   OUTPUT_BIGNUM(key->base, out, y, z);
-
-   if (type == PK_PRIVATE) {
-      /* export x - private key */
-      OUTPUT_BIGNUM(key->x, out, y, z);
-   }
-   else {
-      /* export y - public key */
-      OUTPUT_BIGNUM(key->y, out, y, z);
-   }
-
-   /* store header */
-   packet_store_header(out, PACKET_SECT_DH, PACKET_SUB_KEY);
-
-   /* store len */
-   *outlen = y;
-   return CRYPT_OK;
-}
-
-/**
-  Import a DH key from a binary packet
-  @param in     The packet to read
-  @param inlen  The length of the input packet
-  @param key    [out] Where to import the key to
-  @return CRYPT_OK if successful, on error all allocated memory is freed automatically
-*/
-int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key)
-{
-   unsigned long x, y;
-   int err;
-
-   LTC_ARGCHK(in  != NULL);
-   LTC_ARGCHK(key != NULL);
-
-   /* make sure valid length */
-   if ((2+PACKET_SIZE) > inlen) {
-      return CRYPT_INVALID_PACKET;
-   }
-
-   /* check type byte */
-   if ((err = packet_valid_header((unsigned char *)in, PACKET_SECT_DH, PACKET_SUB_KEY)) != CRYPT_OK) {
-      return err;
-   }
-
-   /* init */
-   if ((err = mp_init_multi(&key->prime, &key->base, &key->x, &key->y, NULL)) != CRYPT_OK) {
-      return err;
-   }
-
-   /* advance past packet header */
-   y = PACKET_SIZE;
-
-   /* key type, e.g. private, public */
-   key->type = (int)in[y++];
-
-   /* type check both values */
-   if ((key->type != PK_PUBLIC) && (key->type != PK_PRIVATE))  {
-      err = CRYPT_PK_TYPE_MISMATCH;
-      goto error;
-   }
-
-   /* load DH group params */
-   INPUT_BIGNUM(key->prime, in, x, y, inlen);
-   INPUT_BIGNUM(key->base, in, x, y, inlen);
-
-   if (key->type == PK_PRIVATE) {
-      /* load private key */
-      INPUT_BIGNUM(key->x, in, x, y, inlen);
-      /* compute public key */
-      if ((err = mp_exptmod(key->base, key->x, key->prime, key->y)) != CRYPT_OK) {
-         goto error;
-      }
-   }
-   else {
-      /* load public value g^x mod p */
-      INPUT_BIGNUM(key->y, in, x, y, inlen);
-   }
-
-   return CRYPT_OK;
-error:
-   mp_clear_multi(key->prime, key->base, key->y, key->x, NULL);
-   return err;
-}
-
-/**
-   Create a DH shared secret.
-   @param private_key     The private DH key in the pair
-   @param public_key      The public DH key in the pair
-   @param out             [out] The destination of the shared data
-   @param outlen          [in/out] The max size and resulting size of the shared data.
-   @return CRYPT_OK if successful
-*/
-int dh_shared_secret(dh_key *private_key, dh_key *public_key,
-                     unsigned char *out, unsigned long *outlen)
-{
-   void *tmp;
-   unsigned long x;
-   int err;
-
-   LTC_ARGCHK(private_key != NULL);
-   LTC_ARGCHK(public_key  != NULL);
-   LTC_ARGCHK(out         != NULL);
-   LTC_ARGCHK(outlen      != NULL);
-
-   /* types valid? */
-   if (private_key->type != PK_PRIVATE) {
-      return CRYPT_PK_NOT_PRIVATE;
-   }
-
-   /* same DH group? */
-   if (mp_cmp(private_key->prime, public_key->prime) != LTC_MP_EQ) { return CRYPT_PK_TYPE_MISMATCH; }
-   if (mp_cmp(private_key->base, public_key->base) != LTC_MP_EQ)   { return CRYPT_PK_TYPE_MISMATCH; }
-
-   /* init big numbers */
-   if ((err = mp_init(&tmp)) != CRYPT_OK) {
-      return err;
-   }
-
-   /* tmp = p-1 */
-   if ((err = mp_sub_d(private_key->prime, 1, tmp)) != CRYPT_OK) {
-      goto error;
-   }
-   /* reject public keys with: y <= 1 OR y >= p-1 */
-   if (mp_cmp(public_key->y, tmp) != LTC_MP_LT || mp_cmp_d(public_key->y, 1) != LTC_MP_GT) {
-      err = CRYPT_INVALID_ARG;
-      goto error;
-   }
-
-   /* compute y^x mod p */
-   if ((err = mp_exptmod(public_key->y, private_key->x, private_key->prime, tmp)) != CRYPT_OK)  {
-      goto error;
-   }
-
-   /* enough space for output? */
-   x = (unsigned long)mp_unsigned_bin_size(tmp);
-   if (*outlen < x) {
-      *outlen = x;
-      err = CRYPT_BUFFER_OVERFLOW;
-      goto error;
-   }
-   if ((err = mp_to_unsigned_bin(tmp, out)) != CRYPT_OK) {
-      goto error;
-   }
-   *outlen = x;
-   err = CRYPT_OK;
-
-error:
-   mp_clear(tmp);
-   return err;
 }
 
 #endif /* LTC_MDH */

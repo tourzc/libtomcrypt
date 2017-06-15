@@ -171,6 +171,10 @@ int katja_import(const unsigned char *in, unsigned long inlen, katja_key *key);
 /* ---- DH Routines ---- */
 #ifdef LTC_MDH
 
+#ifndef DH_BUF_SIZE
+#define DH_BUF_SIZE 2100
+#endif
+
 typedef struct {
   int size;
   char *name, *base, *prime;
@@ -193,9 +197,14 @@ int dh_groupsize_to_keysize(int groupsize);
 int dh_make_key(prng_state *prng, int wprng, int groupsize, dh_key *key);
 int dh_make_key_ex(prng_state *prng, int wprng, char *prime_hex, char *base_hex, dh_key *key);
 void dh_free(dh_key *key);
+int dh_check_pubkey(dh_key *key);
 
 int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key);
 int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key);
+
+int dh_export_raw(unsigned char *out, unsigned long *outlen, int type, dh_key *key);
+int dh_import_raw(unsigned char *in, unsigned long inlen, int type,
+                     const char *prime_hex, const char *base_hex, dh_key *key);
 
 int dh_shared_secret(dh_key        *private_key, dh_key        *public_key,
                      unsigned char *out,         unsigned long *outlen);
