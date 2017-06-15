@@ -2051,15 +2051,51 @@
 					>
 				</File>
 				<File
-					RelativePath="src\pk\dh\dh_static.c"
+					RelativePath="src\pk\dh\dh_check_pubkey.c"
 					>
 				</File>
 				<File
-					RelativePath="src\pk\dh\dh_static.h"
+					RelativePath="src\pk\dh\dh_decrypt_key.c"
 					>
 				</File>
 				<File
-					RelativePath="src\pk\dh\dh_sys.c"
+					RelativePath="src\pk\dh\dh_encrypt_key.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_export.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_export_raw.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_free.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_import.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_import_raw.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_make_key.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_shared_secret.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_sign_hash.c"
+					>
+				</File>
+				<File
+					RelativePath="src\pk\dh\dh_verify_hash.c"
 					>
 				</File>
 			</Filter>
