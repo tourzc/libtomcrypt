@@ -154,7 +154,7 @@ static int _basic_test(void)
       fprintf(stderr, "dh_groupsizes unexpected gmin=%d\n", gmin);
       return CRYPT_ERROR;
    }
-   if (gmax != 1024) {
+   if (gmax < 256) {
       fprintf(stderr, "dh_groupsizes unexpected gmax=%d\n", gmax);
       return CRYPT_ERROR;
    }
