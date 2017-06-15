@@ -124,7 +124,7 @@ const ltc_dh_set_type ltc_dh_sets[] = {
 #endif
 #ifdef LTC_DH6144
 {  /* 6144-bit MODP Group 17 - https://tools.ietf.org/html/rfc3526#section-6 */
-   786,
+   768,
    "DH-6144",
    "2",
    "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"

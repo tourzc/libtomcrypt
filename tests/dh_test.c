@@ -54,7 +54,7 @@ static int _basic_test(void)
 {
    unsigned char buf[3][4096], ch;
    unsigned long x, y, z;
-   int           stat, stat2;
+   int           stat, stat2, size, gmin = 999999, gmax = -999999;
    dh_key        usera, userb;
 
    if (register_prng(&yarrow_desc) == -1) {
@@ -145,9 +145,40 @@ static int _basic_test(void)
    DO(dh_verify_hash (buf[1], x, buf[0], 16, &stat2, &usera));
    dh_free (&usera);
    if (!(stat == 1 && stat2 == 0)) {
-      fprintf(stderr, "dh_sign/verify_hash %d %d", stat, stat2);
+      fprintf(stderr, "dh_sign/verify_hash %d %d\n", stat, stat2);
       return CRYPT_ERROR;
    }
+
+   dh_groupsizes(&gmin, &gmax);
+   if (gmin != 96) {
+      fprintf(stderr, "dh_groupsizes unexpected gmin=%d\n", gmin);
+      return CRYPT_ERROR;
+   }
+   if (gmax != 1024) {
+      fprintf(stderr, "dh_groupsizes unexpected gmax=%d\n", gmax);
+      return CRYPT_ERROR;
+   }
+   if (dh_groupsize_to_keysize(1025) != 0) {
+      fprintf(stderr, "dh_groupsizes unexpected dh_groupsize_to_keysize(1025)");
+      return CRYPT_ERROR;
+   }
+   for (x = 0; ltc_dh_sets[x].size != 0; x++) {
+      DO(dh_make_key(&yarrow_prng, find_prng ("yarrow"), ltc_dh_sets[x].size, &usera));
+      size = dh_get_groupsize(&usera);
+      dh_free(&usera);
+      if (size != ltc_dh_sets[x].size) {
+         fprintf(stderr, "dh_groupsize mismatch %d %d\n", size, ltc_dh_sets[x].size);
+         return CRYPT_ERROR;
+      }
+      size = dh_groupsize_to_keysize(size);
+      if (size == 0) {
+         fprintf(stderr, "dh_groupsize_to_keysize zero\n");
+         return CRYPT_ERROR;
+      }
+      DO(dh_make_key_ex(&yarrow_prng, find_prng ("yarrow"), ltc_dh_sets[x].prime, ltc_dh_sets[x].base, &usera));
+      dh_free(&usera);
+   }
+
    return CRYPT_OK;
 }
 
