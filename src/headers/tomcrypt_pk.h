@@ -196,6 +196,7 @@ int dh_groupsize_to_keysize(int groupsize);
 
 int dh_make_key(prng_state *prng, int wprng, int groupsize, dh_key *key);
 int dh_make_key_ex(prng_state *prng, int wprng, char *prime_hex, char *base_hex, dh_key *key);
+int dh_make_key_dhparam(prng_state *prng, int wprng, unsigned char *dhparam, unsigned long dhparamlen, dh_key *key);
 void dh_free(dh_key *key);
 int dh_check_pubkey(dh_key *key);
 
