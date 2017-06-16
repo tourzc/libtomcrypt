@@ -135,7 +135,6 @@ int dh_make_key(prng_state *prng, int wprng, int groupsize, dh_key *key)
 */
 int dh_make_key_dhparam(prng_state *prng, int wprng, unsigned char *dhparam, unsigned long dhparamlen, dh_key *key)
 {
-   unsigned char *buf1, *buf2;
    void *prime, *base;
    int err;
 
