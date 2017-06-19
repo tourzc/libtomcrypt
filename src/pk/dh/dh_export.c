@@ -22,7 +22,7 @@
 int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key)
 {
    unsigned char flags[1];
-   int err;
+   int err, version = 1;
 
    LTC_ARGCHK(out    != NULL);
    LTC_ARGCHK(outlen != NULL);
@@ -32,6 +32,7 @@ int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key)
       /* export x - private key */
       flags[0] = 1;
       err = der_encode_sequence_multi(out, outlen,
+                                LTC_ASN1_SHORT_INTEGER, 1UL, &version,
                                 LTC_ASN1_BIT_STRING,    1UL, flags,
                                 LTC_ASN1_INTEGER,       1UL, key->prime,
                                 LTC_ASN1_INTEGER,       1UL, key->base,
@@ -42,6 +43,7 @@ int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key)
       /* export y - public key */
       flags[0] = 0;
       err = der_encode_sequence_multi(out, outlen,
+                                LTC_ASN1_SHORT_INTEGER, 1UL, &version,
                                 LTC_ASN1_BIT_STRING,    1UL, flags,
                                 LTC_ASN1_INTEGER,       1UL, key->prime,
                                 LTC_ASN1_INTEGER,       1UL, key->base,

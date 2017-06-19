@@ -21,7 +21,7 @@
 int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key)
 {
    unsigned char flags[1];
-   int err;
+   int err, version;
 
    LTC_ARGCHK(in  != NULL);
    LTC_ARGCHK(key != NULL);
@@ -32,38 +32,49 @@ int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key)
    }
 
    /* find out what type of key it is */
-   err = der_decode_sequence_multi(in, inlen, LTC_ASN1_BIT_STRING, 1UL, &flags, LTC_ASN1_EOL, 0UL, NULL);
+   err = der_decode_sequence_multi(in, inlen,
+                                   LTC_ASN1_SHORT_INTEGER, 1UL, &version,
+                                   LTC_ASN1_BIT_STRING, 1UL, &flags,
+                                   LTC_ASN1_EOL, 0UL, NULL);
    if (err != CRYPT_OK) {
       goto error;
    }
 
-   if (flags[0] == 1) {
-      key->type = PK_PRIVATE;
-      if ((err = der_decode_sequence_multi(in, inlen,
-                                           LTC_ASN1_BIT_STRING, 1UL, flags,
-                                           LTC_ASN1_INTEGER,    1UL, key->prime,
-                                           LTC_ASN1_INTEGER,    1UL, key->base,
-                                           LTC_ASN1_INTEGER,    1UL, key->x,
-                                           LTC_ASN1_EOL,        0UL, NULL)) != CRYPT_OK) {
-         goto error;
+   if (version == 1) {
+      if (flags[0] == 1) {
+         key->type = PK_PRIVATE;
+         if ((err = der_decode_sequence_multi(in, inlen,
+                                              LTC_ASN1_SHORT_INTEGER, 1UL, &version,
+                                              LTC_ASN1_BIT_STRING,    1UL, flags,
+                                              LTC_ASN1_INTEGER,       1UL, key->prime,
+                                              LTC_ASN1_INTEGER,       1UL, key->base,
+                                              LTC_ASN1_INTEGER,       1UL, key->x,
+                                              LTC_ASN1_EOL,           0UL, NULL)) != CRYPT_OK) {
+            goto error;
+         }
+         /* compute public key: y = (base ^ x) mod prime */
+         if ((err = mp_exptmod(key->base, key->x, key->prime, key->y)) != CRYPT_OK) {
+            goto error;
+         }
       }
-      /* compute public key: y = (base ^ x) mod prime */
-      if ((err = mp_exptmod(key->base, key->x, key->prime, key->y)) != CRYPT_OK) {
-         goto error;
+      else {
+         key->type = PK_PUBLIC;
+         if ((err = der_decode_sequence_multi(in, inlen,
+                                              LTC_ASN1_SHORT_INTEGER, 1UL, &version,
+                                              LTC_ASN1_BIT_STRING,    1UL, flags,
+                                              LTC_ASN1_INTEGER,       1UL, key->prime,
+                                              LTC_ASN1_INTEGER,       1UL, key->base,
+                                              LTC_ASN1_INTEGER,       1UL, key->y,
+                                              LTC_ASN1_EOL,           0UL, NULL)) != CRYPT_OK) {
+            goto error;
+         }
+         mp_clear(key->x);
+         key->x = NULL;
       }
    }
    else {
-      key->type = PK_PUBLIC;
-      if ((err = der_decode_sequence_multi(in, inlen,
-                                           LTC_ASN1_BIT_STRING, 1UL, flags,
-                                           LTC_ASN1_INTEGER,    1UL, key->prime,
-                                           LTC_ASN1_INTEGER,    1UL, key->base,
-                                           LTC_ASN1_INTEGER,    1UL, key->y,
-                                           LTC_ASN1_EOL,        0UL, NULL)) != CRYPT_OK) {
-         goto error;
-      }
-      mp_clear(key->x);
-      key->x = NULL;
+      err = CRYPT_INVALID_PACKET;
+      goto error;
    }
 
    /* check public key */
