@@ -42,20 +42,19 @@ int dh_check_pubkey(dh_key *key)
 
    /* public key must have more than one bit set */
    digit_count = mp_get_digit_count(key->y);
-   for (i = 0; i < digit_count; i++) {
+   for (i = 0; i < digit_count && bits_set < 2; i++) {
       digit = mp_get_digit(key->y, i);
       while (digit > 0) {
          if (digit & 1) bits_set++;
          digit >>= 1;
       }
    }
-   if (bits_set <= 1) {
-      err = CRYPT_INVALID_ARG;
-      goto error;
+   if (bits_set > 1) {
+      err = CRYPT_OK;
    }
-
-   /* success */
-   err = CRYPT_OK;
+   else {
+      err = CRYPT_INVALID_ARG;
+   }
 
 error:
    mp_clear(p_minus1);
