@@ -21,7 +21,8 @@
 int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key)
 {
    unsigned char flags[1];
-   int err, version;
+   int err;
+   unsigned long version;
 
    LTC_ARGCHK(in  != NULL);
    LTC_ARGCHK(key != NULL);

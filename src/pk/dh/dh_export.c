@@ -22,7 +22,8 @@
 int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key)
 {
    unsigned char flags[1];
-   int err, version = 1;
+   int err;
+   unsigned long version = 1;
 
    LTC_ARGCHK(out    != NULL);
    LTC_ARGCHK(outlen != NULL);
