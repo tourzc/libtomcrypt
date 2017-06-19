@@ -2055,14 +2055,6 @@
 					>
 				</File>
 				<File
-					RelativePath="src\pk\dh\dh_decrypt_key.c"
-					>
-				</File>
-				<File
-					RelativePath="src\pk\dh\dh_encrypt_key.c"
-					>
-				</File>
-				<File
 					RelativePath="src\pk\dh\dh_export.c"
 					>
 				</File>
@@ -2088,14 +2080,6 @@
 				</File>
 				<File
 					RelativePath="src\pk\dh\dh_shared_secret.c"
-					>
-				</File>
-				<File
-					RelativePath="src\pk\dh\dh_sign_hash.c"
-					>
-				</File>
-				<File
-					RelativePath="src\pk\dh\dh_verify_hash.c"
 					>
 				</File>
 			</Filter>
