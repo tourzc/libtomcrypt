@@ -220,24 +220,6 @@ const ltc_dh_set_type ltc_dh_sets[] = {
 };
 
 /**
-   Get the min and max DH group sizes (octets)
-   @param low    [out] The smallest group size supported
-   @param high   [out] The largest group size supported
-*/
-void dh_groupsizes(int *low, int *high)
-{
-   int x;
-   LTC_ARGCHKVD(low != NULL);
-   LTC_ARGCHKVD(high != NULL);
-   *low  = INT_MAX;
-   *high = 0;
-   for (x = 0; ltc_dh_sets[x].size != 0; x++) {
-      if (*low > ltc_dh_sets[x].size)  *low  = ltc_dh_sets[x].size;
-      if (*high < ltc_dh_sets[x].size) *high = ltc_dh_sets[x].size;
-   }
-}
-
-/**
   Returns the DH group size (octets) for given key
   @param key   The DH key to get the size of
   @return The group size in octets (0 on error)

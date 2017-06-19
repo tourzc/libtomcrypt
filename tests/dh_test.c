@@ -143,7 +143,7 @@ static int _basic_test(void)
 {
    unsigned char buf[3][4096];
    unsigned long x, y, z;
-   int           size, gmin = 999999, gmax = -999999;
+   int           size;
    dh_key        usera, userb;
 
    if (register_prng(&yarrow_desc) == -1) {
@@ -200,19 +200,6 @@ static int _basic_test(void)
       return CRYPT_ERROR;
    }
 
-   dh_groupsizes(&gmin, &gmax);
-   if (gmin != 96) {
-      fprintf(stderr, "dh_groupsizes unexpected gmin=%d\n", gmin);
-      return CRYPT_ERROR;
-   }
-   if (gmax < 256) {
-      fprintf(stderr, "dh_groupsizes unexpected gmax=%d\n", gmax);
-      return CRYPT_ERROR;
-   }
-   if (dh_groupsize_to_keysize(1025) != 0) {
-      fprintf(stderr, "dh_groupsizes unexpected dh_groupsize_to_keysize(1025)");
-      return CRYPT_ERROR;
-   }
    for (x = 0; ltc_dh_sets[x].size != 0; x++) {
       DO(dh_make_key(&yarrow_prng, find_prng ("yarrow"), ltc_dh_sets[x].size, &usera));
       size = dh_get_groupsize(&usera);

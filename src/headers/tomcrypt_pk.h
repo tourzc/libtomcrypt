@@ -190,7 +190,6 @@ typedef struct {
     void *prime;
 } dh_key;
 
-void dh_groupsizes(int *low, int *high);
 int dh_get_groupsize(dh_key *key);
 int dh_groupsize_to_keysize(int groupsize);
 
@@ -198,7 +197,6 @@ int dh_make_key(prng_state *prng, int wprng, int groupsize, dh_key *key);
 int dh_make_key_ex(prng_state *prng, int wprng, char *prime_hex, char *base_hex, dh_key *key);
 int dh_make_key_dhparam(prng_state *prng, int wprng, unsigned char *dhparam, unsigned long dhparamlen, dh_key *key);
 void dh_free(dh_key *key);
-int dh_check_pubkey(dh_key *key);
 
 int dh_export(unsigned char *out, unsigned long *outlen, int type, dh_key *key);
 int dh_import(const unsigned char *in, unsigned long inlen, dh_key *key);
@@ -210,22 +208,7 @@ int dh_import_raw(unsigned char *in, unsigned long inlen, int type,
 int dh_shared_secret(dh_key        *private_key, dh_key        *public_key,
                      unsigned char *out,         unsigned long *outlen);
 
-int dh_encrypt_key(const unsigned char *in,    unsigned long  keylen,
-                         unsigned char *out,   unsigned long *outlen,
-                         prng_state    *prng,  int wprng, int hash,
-                         dh_key        *key);
-
-int dh_decrypt_key(const unsigned char *in,  unsigned long  inlen,
-                         unsigned char *out, unsigned long *outlen,
-                         dh_key *key);
-
-int dh_sign_hash(const unsigned char *in,   unsigned long inlen,
-                       unsigned char *out,  unsigned long *outlen,
-                       prng_state    *prng, int wprng, dh_key *key);
-
-int dh_verify_hash(const unsigned char *sig,  unsigned long siglen,
-                   const unsigned char *hash, unsigned long hashlen,
-                   int *stat, dh_key *key);
+int dh_check_pubkey(dh_key *key); /* INTERNAL ONLY */
 
 #endif
 
