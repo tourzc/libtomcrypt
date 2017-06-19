@@ -141,9 +141,9 @@ static int _dhparam_test(void)
 
 static int _basic_test(void)
 {
-   unsigned char buf[3][4096], ch;
+   unsigned char buf[3][4096];
    unsigned long x, y, z;
-   int           stat, stat2, size, gmin = 999999, gmax = -999999;
+   int           size, gmin = 999999, gmax = -999999;
    dh_key        usera, userb;
 
    if (register_prng(&yarrow_desc) == -1) {
@@ -197,44 +197,6 @@ static int _basic_test(void)
    }
    if (memcmp (buf[0], buf[2], x)) {
       fprintf(stderr, "Failed.  Content didn't match.\n");
-      return CRYPT_ERROR;
-   }
-
-   /* test encrypt_key */
-   dh_make_key (&yarrow_prng, find_prng ("yarrow"), KEYSIZE/8, &usera);
-   for (ch = 0; ch < 16; ch++) {
-      buf[0][ch] = ch;
-   }
-   y = sizeof (buf[1]);
-   DO(dh_encrypt_key (buf[0], 16, buf[1], &y, &yarrow_prng, find_prng ("yarrow"), find_hash ("md5"), &usera));
-   zeromem (buf[0], sizeof (buf[0]));
-   x = sizeof (buf[0]);
-   DO(dh_decrypt_key (buf[1], y, buf[0], &x, &usera));
-   if (x != 16) {
-      fprintf(stderr, "Failed (length)\n");
-      dh_free (&usera);
-      return CRYPT_ERROR;
-   }
-   for (ch = 0; ch < 16; ch++) {
-      if (buf[0][ch] != ch) {
-        fprintf(stderr, "Failed (contents)\n");
-        dh_free (&usera);
-        return CRYPT_ERROR;
-      }
-   }
-
-   /* test sign_hash */
-   for (ch = 0; ch < 16; ch++) {
-      buf[0][ch] = ch;
-   }
-   x = sizeof (buf[1]);
-   DO(dh_sign_hash (buf[0], 16, buf[1], &x, &yarrow_prng, find_prng ("yarrow"), &usera));
-   DO(dh_verify_hash (buf[1], x, buf[0], 16, &stat, &usera));
-   buf[0][0] ^= 1;
-   DO(dh_verify_hash (buf[1], x, buf[0], 16, &stat2, &usera));
-   dh_free (&usera);
-   if (!(stat == 1 && stat2 == 0)) {
-      fprintf(stderr, "dh_sign/verify_hash %d %d\n", stat, stat2);
       return CRYPT_ERROR;
    }
 
